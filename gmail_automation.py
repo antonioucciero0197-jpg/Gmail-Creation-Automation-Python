@@ -20,10 +20,20 @@ def main():
     chrome_options.add_argument("--disable-infobars")
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--lang=it-IT")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option('useAutomationExtension', False)
     
-    driver = webdriver.Chrome(options=chrome_options)
+    # Use system chromium
+    chrome_options.binary_location = "/usr/bin/chromium"
+    
+    from selenium.webdriver.chrome.service import Service
+    service = Service("/usr/bin/chromedriver")
+    driver = webdriver.Chrome(service=service, options=chrome_options)
     driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
     # Italian names
@@ -91,12 +101,15 @@ def fill_form(driver, your_username, your_password, your_first_name, your_last_n
         print(f"Password: {your_password}")
         print(f"{'='*50}\n")
 
-        input("Premi INVIO per chiudere il browser...")
+        # input("Premi INVIO per chiudere il browser...")  # Disabled for headless
 
     except Exception as e:
         print(f"Errore durante la creazione: {e}")
-        driver.save_screenshot("error_screenshot.png")
-        print("Screenshot salvato come error_screenshot.png")
+        try:
+            driver.save_screenshot("error_screenshot.png")
+            print("Screenshot salvato come error_screenshot.png")
+        except:
+            pass
     finally:
         driver.quit()
 
@@ -136,49 +149,68 @@ def fill_birthday_and_gender(driver, wait, your_birthday, your_gender):
     year_field.clear()
     year_field.send_keys(your_year)
 
-    # Gender - Italian language
+    # Gender - support multiple languages
     gender_map = {
-        "male": "Uomo",
-        "female": "Donna", 
-        "other": "Preferisco non specificarlo",
-        "custom": "Personalizzato"
+        "other": ["Preferisco non specificarlo", "Rather not say", "Prefiero no decirlo"],
+        "male": ["Uomo", "Male", "Masculino"],
+        "female": ["Donna", "Female", "Femenino"],
+        "custom": ["Personalizzato", "Custom", "Personalizado"]
     }
     
-    gender_visible_text = gender_map.get(your_gender, "Preferisco non specificarlo")
+    gender_texts = gender_map.get(your_gender, gender_map["other"])
     
     gender_div = wait.until(EC.element_to_be_clickable((By.ID, "gender")))
     gender_div.click()
     timeSleep(1)
 
-    gender_option = wait.until(EC.element_to_be_clickable((
-        By.XPATH, f"//li[@role='option' and .//span[contains(text(), '{gender_visible_text}')]]"
-    )))
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", gender_option)
-    timeSleep(0.5)
-    gender_option.click()
+    # Try each language variant
+    gender_option = None
+    for gender_text in gender_texts:
+        try:
+            gender_option = driver.find_element(By.XPATH, f"//li[@role='option' and .//span[contains(text(), '{gender_text}')]]")
+            if gender_option:
+                break
+        except:
+            continue
+    
+    if gender_option:
+        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", gender_option)
+        timeSleep(0.5)
+        gender_option.click()
+    else:
+        # Fallback: select third option (usually "Rather not say")
+        options = driver.find_elements(By.XPATH, "//li[@role='option']")
+        if len(options) >= 3:
+            options[2].click()
 
     click_next_button(driver, wait)
-    print(f"✓ Data di nascita: {your_day}/{your_month}/{your_year}, Genere: {gender_visible_text}")
+    print(f"✓ Data di nascita: {your_day}/{your_month}/{your_year}, Genere: {your_gender}")
 
 def click_no_email_option(driver, wait):
-    """Click on 'Non hai un indirizzo email o un numero di telefono?'"""
+    """Click on 'Don't have an email address or phone number?' or similar"""
     try:
-        # Try multiple selectors for the link
+        # Try multiple selectors for the link (multiple languages)
         selectors = [
+            # Italian
             "//button[contains(., 'Non hai un indirizzo')]",
             "//span[contains(text(), 'Non hai un indirizzo')]",
-            "//div[contains(text(), 'Non hai un indirizzo')]",
-            "//*[contains(text(), 'Non hai un indirizzo email')]",
-            "//button[@jsname='LgbsSe']//span[contains(text(), 'Non hai')]/..",
+            # English
+            "//*[contains(text(), \"Don't have\")]",
+            "//button[contains(., \"Don't have\")]",
+            "//*[contains(text(), 'without')]",
+            # Spanish
+            "//*[contains(text(), 'No tienes')]",
         ]
         
         for selector in selectors:
             try:
-                element = wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
-                element.click()
-                print("✓ Cliccato su 'Non hai un indirizzo email o un numero di telefono?'")
-                timeSleep(1)
-                return
+                elements = driver.find_elements(By.XPATH, selector)
+                for element in elements:
+                    if element.is_displayed():
+                        element.click()
+                        print("✓ Cliccato su opzione 'senza email/telefono'")
+                        timeSleep(1)
+                        return
             except:
                 continue
         
@@ -186,36 +218,46 @@ def click_no_email_option(driver, wait):
         if driver.find_elements(By.NAME, "Username"):
             print("✓ Già sulla pagina username")
             return
+        
+        print("⚠ Opzione 'senza email' non trovata, continuo...")
             
     except Exception as e:
         print(f"Nota: {e}")
 
 def fill_gmailaddress(driver, wait, your_username):
-    # Try to find and click "Crea il tuo indirizzo Gmail" if present
-    try:
-        custom_buttons = driver.find_elements(By.XPATH, "//*[contains(text(), 'Crea il tuo indirizzo Gmail')]")
-        if custom_buttons:
-            custom_buttons[0].click()
-            timeSleep(1)
-    except:
-        pass
-
-    # Try alternative selectors for custom email option
-    try:
-        create_own = driver.find_elements(By.CSS_SELECTOR, "[jsname='CeL6Qc']")
-        if create_own:
-            create_own[0].click()
-            timeSleep(1)
-    except:
-        pass
+    # Try to find and click "Create your own Gmail address" if present (multiple languages)
+    custom_selectors = [
+        "//*[contains(text(), 'Crea il tuo indirizzo Gmail')]",
+        "//*[contains(text(), 'Create your own Gmail address')]",
+        "//*[contains(text(), 'Crear tu propia')]",
+        "[jsname='CeL6Qc']",
+    ]
+    
+    for selector in custom_selectors:
+        try:
+            if selector.startswith("["):
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+            else:
+                elements = driver.find_elements(By.XPATH, selector)
+            for el in elements:
+                if el.is_displayed():
+                    el.click()
+                    timeSleep(1)
+                    break
+        except:
+            continue
 
     # Fill username
-    username_field = wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
-    username_field.clear()
-    username_field.send_keys(your_username)
-    
-    click_next_button(driver, wait)
-    print(f"✓ Username inserito: {your_username}@gmail.com")
+    try:
+        username_field = wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
+        username_field.clear()
+        username_field.send_keys(your_username)
+        
+        click_next_button(driver, wait)
+        print(f"✓ Username inserito: {your_username}@gmail.com")
+    except Exception as e:
+        print(f"⚠ Errore inserimento username: {e}")
+        driver.save_screenshot("username_error.png")
 
 def fill_password(driver, wait, your_password):
     password_field = wait.until(EC.visibility_of_element_located((By.NAME, "Passwd")))
@@ -245,13 +287,11 @@ def handle_verification(driver, wait, your_username):
         phone_field[0].send_keys(PHONE_NUMBER)
         click_next_button(driver, wait)
         print(f"✓ Numero di telefono inserito: {PHONE_NUMBER}")
-        print("⚠ Inserisci il codice di verifica manualmente...")
-        input("Premi INVIO dopo aver inserito il codice...")
+        print("⚠ Verifica telefono richiesta - completare manualmente")
         return
 
     # Check for recovery email option
     try:
-        # Look for recovery email field
         recovery_selectors = [
             (By.NAME, "recoveryEmail"),
             (By.ID, "recoveryEmail"),
@@ -266,8 +306,6 @@ def handle_verification(driver, wait, your_username):
                     recovery_fields[0].send_keys(RECOVERY_EMAIL)
                     click_next_button(driver, wait)
                     print(f"✓ Email di recupero inserita: {RECOVERY_EMAIL}")
-                    print("⚠ Controlla l'email di recupero per il codice di verifica...")
-                    input("Premi INVIO dopo aver inserito il codice...")
                     return
                 break
     except:
@@ -292,7 +330,7 @@ def handle_verification(driver, wait, your_username):
     except:
         pass
 
-    print("⚠ Completa manualmente la verifica se necessario...")
+    print("⚠ Verifica richiesta - processo in attesa")
 
 def click_next_button(driver, wait):
     """Click the next/continue button"""
