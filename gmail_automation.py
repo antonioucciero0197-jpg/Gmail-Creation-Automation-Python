@@ -1,279 +1,334 @@
-# Gmail Account Creation Automation Script - Version 1.1.0
-# Original script by Abdelhakim Khaouiti (khaouitiabdelhakim on GitHub)
-# Account Creation Automation Script - Version 1.1.0
-# Original script by Abdelhakim Khaouiti (khaouitiabdelhakim on GitHub)
-# This is a modification by Facundo Palomanes to fix an error of a month dropdown in creation and a proxy to make it from different locations
+# Gmail Account Creation Automation Script - Version 2.0.0
+# Automated Gmail account creation with Italian language support
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 import random
 import time
 from datetime import datetime, timedelta
 from unidecode import unidecode
 
-# This code is almost working, needs to be tested with a phone number generator that works and a verification code receiver
-# with these everyone with ia and time can code it and it will work. If you need any help or don't undestand something, you can contact me on my discord: darshed or my linkedIn: https://www.linkedin.com/in/facundo-palomanes-2b1a4b1b5/
+# Configuration - Set these before running
+RECOVERY_EMAIL = ""  # Your existing email for verification (e.g., "myemail@example.com")
+PHONE_NUMBER = ""    # Phone number for verification (format: +39xxxxxxxxxx)
 
 def main():
-    
-    #proxy = ["ip:port", "ip:port"]#if you want to use a proxy, you can uncomment the next line and put your proxy list, I recommend using a socks5 proxy
-    # Here is a page that can provide you with free proxies: http://free-proxy.cz/en/proxylist/country/all/socks5/ping/all/2
-    
-    # Chrome options
     chrome_options = ChromeOptions()
     chrome_options.add_argument("--disable-infobars")
-    #chrome_options.add_argument(f'--proxy-server=socks5://{random.choice(proxy)}') # if you want to use a socks5 proxy is for anonimous creation (highly recommended)
-    #chrome_options.add_argument('--ignore-certificate-errors') # if you use a proxy uncomment this line
-
-    # WebDriver service
-    ChromeService('chromedriver.exe')
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--lang=it-IT")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
+    
     driver = webdriver.Chrome(options=chrome_options)
+    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
-    #change the names to spanic ones down below you can see the list of french names
+    # Italian names
     first_names = [
-        "Aitana", "Alonso", "Amparo", "Aurelio", "Beatriz", "Benjamin", "Berta", "Bruno", "Camila", "Carlos",
-        "Cecilia", "Celeste", "Clara", "Claudio", "Dalia", "Daniel", "David", "Delia", "Diana", "Domingo",
-        "Elena", "Elias", "Emilia", "Enrique", "Esteban", "Estela", "Eugenia", "Eva", "Fabricio", "Federico",
-        "Felipe", "Florencia", "Francisco", "Gabriel", "Gema", "Genaro", "Graciela", "Gregorio", "Guadalupe", "Guillermo",
-        "Hector", "Helena", "Hernán", "Hilda", "Hugo", "Ignacio", "Ines", "Irene", "Isaac", "Isabel",
-        "Javier", "Jimena", "Joaquin", "Josefina", "Juan", "Julia", "Julio", "Justina", "Karen", "Kevin",
-        "Laura", "Leandro", "Leonardo", "Leticia", "Lourdes", "Lucas", "Lucia", "Luis", "Luisa", "Manuel",
-        "Marcela", "Marcos", "Margarita", "Mario", "Martina", "Mateo", "Matías", "Mauricio", "Mercedes", "Micaela",
-        "Nadia", "Nestor", "Nicolas", "Noelia", "Norberto", "Nuria", "Octavio", "Olga", "Orlando", "Oscar",
-        "Pablo", "Paloma", "Patricio", "Paula", "Pedro", "Pilar", "Ramiro", "Raquel", "Ricardo", "Rocío"
+        "Marco", "Giuseppe", "Giovanni", "Francesco", "Antonio", "Alessandro", "Andrea", "Luca", "Matteo", "Lorenzo",
+        "Davide", "Simone", "Federico", "Riccardo", "Stefano", "Gabriele", "Daniele", "Michele", "Nicola", "Tommaso",
+        "Maria", "Anna", "Giulia", "Francesca", "Sara", "Laura", "Chiara", "Valentina", "Alessia", "Martina",
+        "Elisa", "Giorgia", "Federica", "Silvia", "Elena", "Roberta", "Claudia", "Paola", "Monica", "Cristina"
     ]
 
     last_names = [
-        "Aguilar", "Alarcon", "Alfaro", "Alonso", "Alvarez", "Amador", "Andrada", "Aragon", "Arias", "Arrieta",
-        "Baez", "Balbuena", "Ballesteros", "Barrios", "Becerra", "Beltran", "Benitez", "Bermudez", "Blanco", "Bonilla",
-        "Cabrera", "Calderon", "Cano", "Cardenas", "Carrasco", "Castillo", "Cervantes", "Cisneros", "Contreras", "Cornejo",
-        "Delgado", "Diaz", "Dominguez", "Dueñas", "Durán", "Escobar", "Espinosa", "Estévez", "Estrada", "Fajardo",
-        "Falcon", "Farias", "Fernandez", "Figueroa", "Flores", "Fonseca", "Fuentes", "Gallardo", "Galvan", "Garcia",
-        "Garrido", "Gil", "Godoy", "Gomez", "Gonzalez", "Gordillo", "Guerrero", "Gutierrez", "Hernandez", "Herrera",
-        "Ibañez", "Iglesias", "Infante", "Iturbe", "Jaramillo", "Jimenez", "Juarez", "Lagos", "Lara", "Leon",
-        "Lopez", "Luna", "Macias", "Maldonado", "Manrique", "Martinez", "Medina", "Mejia", "Mendoza", "Menendez",
-        "Miranda", "Molina", "Montoya", "Morales", "Muñoz", "Navarro", "Nieves", "Nieto", "Nuñez", "Olivares",
-        "Ortega", "Ortiz", "Pacheco", "Padilla", "Palacios", "Paredes", "Parra", "Paz", "Peña", "Perez"
+        "Rossi", "Russo", "Ferrari", "Esposito", "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco",
+        "Bruno", "Gallo", "Conti", "De Luca", "Mancini", "Costa", "Giordano", "Rizzo", "Lombardi", "Moretti",
+        "Barbieri", "Fontana", "Santoro", "Mariani", "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone"
     ]
 
-    # Randomly select a first name and a last name
     your_first_name = random.choice(first_names)
     your_last_name = random.choice(last_names)
-
-    # Generate a random number
     random_number = random.randint(1000, 9999)
-
-    # Retirer les accents des prénoms et nom de famille
-    your_first_name_normalized = unidecode(your_first_name).lower() 
-    your_last_name_normalized = unidecode(your_last_name).lower()
-
-
-    your_username = f"{your_first_name_normalized}.{your_last_name_normalized}{random_number}" #remove accents from first and last names
-
-    #your_birthday = "02 3 1989" #dd m yyyy exp : 24 11 2003 # you should put a random number here or behind is the logical for random birthdays
-    your_birthday = random_birthday()
-    #your_gender = "2" # 1:F 2:M 3:Not say 4:Custom # behind is a random gender generator
-    your_gender = random.choice(["male", "female", "other"]) #random gender generator 
-    your_password = "P@ssWoRd910." # default password
     
+    your_first_name_normalized = unidecode(your_first_name).lower()
+    your_last_name_normalized = unidecode(your_last_name).lower().replace(" ", "")
+    your_username = f"{your_first_name_normalized}.{your_last_name_normalized}{random_number}"
+    
+    your_birthday = random_birthday()
+    your_gender = "other"  # Always "Preferisco non specificarlo"
+    your_password = f"Pwd{random.randint(10000, 99999)}!@#"
+
     fill_form(driver, your_username, your_password, your_first_name, your_last_name, your_birthday, your_gender)
 
-def fill_form(driver, your_username, your_password ,your_first_name, your_last_name, your_birthday, your_gender):
+def fill_form(driver, your_username, your_password, your_first_name, your_last_name, your_birthday, your_gender):
     try:
+        # Step 1: Go to Google signup
         driver.get("https://accounts.google.com/signup/v2/createaccount?flowName=GlifWebSignIn&flowEntry=SignUp")
-        wait = WebDriverWait(driver, 20)
-        
-        fill_name(driver, wait ,your_first_name, your_last_name)
-        
-        fill_birthday_and_gender(driver, wait, your_birthday, your_gender)
-        
+        wait = WebDriverWait(driver, 30)
         timeSleep(2)
+
+        # Step 2: Fill name
+        fill_name(driver, wait, your_first_name, your_last_name)
+        timeSleep(2)
+
+        # Step 3: Fill birthday and gender
+        fill_birthday_and_gender(driver, wait, your_birthday, your_gender)
+        timeSleep(2)
+
+        # Step 4: Click "Non hai un indirizzo email o un numero di telefono?" and choose email
+        click_no_email_option(driver, wait)
+        timeSleep(2)
+
+        # Step 5: Fill Gmail address
         fill_gmailaddress(driver, wait, your_username)
-        
+        timeSleep(2)
+
+        # Step 6: Fill password
         fill_password(driver, wait, your_password)
         timeSleep(2)
-        
-        # this part i think is not working
-        if driver.find_elements(By.ID, "phoneNumberId"):
-            wait.until(EC.element_to_be_clickable((By.ID, "phoneNumberId")))
-            phonenumber_field = driver.find_element(By.ID, "phoneNumberId")
-            phonenumber_field.clear()
-            phonenumber_field.send_keys("+2126" + str(random.randint(10000000, 99999999)))
-            next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-vQzf8d")
-            next_button.click()
-            timeSleep(2)
-            ok = not driver.find_element(By.CLASS_NAME, "AfGCob")
-            while not ok:
-                try:
-                    phonenumber_field.clear()
-                    phonenumber_field.send_keys("+2126" + str(random.randint(10000000, 99999999)))
-                    next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-vQzf8d")
-                    next_button.click()
-                    timeSleep(2)
-                    ok = not driver.find_element(By.CLASS_NAME, "AfGCob")
-                except:
-                    pass
-        else:
-            # Skip phone number and recovery email steps
-            skip_buttons = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, "button span.VfPpkd-vQzf8d")))
-            for button in skip_buttons:
-                button.click()
 
-        # Agree to terms
-        agree_button = wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, "button span.VfPpkd-vQzf8d")))
-        agree_button.click()
-# Enter and confirm password
-        print(f"Your Gmail successfully created:\n{{\ngmail: {your_username}@gmail.com\npassword: {your_password}\n}}")
+        # Step 7: Handle verification (recovery email or phone)
+        handle_verification(driver, wait, your_username)
+        timeSleep(2)
+
+        print(f"\n{'='*50}")
+        print(f"Gmail creato con successo!")
+        print(f"Email: {your_username}@gmail.com")
+        print(f"Password: {your_password}")
+        print(f"{'='*50}\n")
+
+        input("Premi INVIO per chiudere il browser...")
 
     except Exception as e:
-        print("Failed to create your Gmail, Sorry")
-        print(e)
+        print(f"Errore durante la creazione: {e}")
+        driver.save_screenshot("error_screenshot.png")
+        print("Screenshot salvato come error_screenshot.png")
     finally:
         driver.quit()
-# Execute the function to fill out the form
 
-#--------------------------------------------------------- fill functions -------------------------------------------------------------
 def fill_name(driver, wait, your_first_name, your_last_name):
-    # Fill in name fields
     first_name = wait.until(EC.presence_of_element_located((By.NAME, "firstName")))
-    first_name = driver.find_element(By.NAME, "firstName")
-    last_name = driver.find_element(By.NAME, "lastName")
     first_name.clear()
     first_name.send_keys(your_first_name)
+    
+    last_name = driver.find_element(By.NAME, "lastName")
     last_name.clear()
     last_name.send_keys(your_last_name)
-    next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-LgbsSe")
-    next_button.click()
-    print("full name fields filled successfully")
+    
+    click_next_button(driver, wait)
+    print(f"✓ Nome inserito: {your_first_name} {your_last_name}")
 
-def fill_birthday_and_gender(driver, wait,your_birthday, your_gender):
-    # Wait for birthday fields to be visible
-    wait.until(EC.visibility_of_element_located((By.NAME, "day")))
-
-    # Fill in birthday
+def fill_birthday_and_gender(driver, wait, your_birthday, your_gender):
+    wait.until(EC.visibility_of_element_located((By.ID, "day")))
     your_day, your_month, your_year = your_birthday.split()
 
-    # Click en el selector del mes (div)
+    # Month dropdown
     month_div = wait.until(EC.element_to_be_clickable((By.ID, "month")))
     month_div.click()
-
-    # Search the div instead of the select element
+    timeSleep(1)
+    
     month_option = wait.until(EC.element_to_be_clickable((
         By.XPATH, f"//li[@role='option' and @data-value='{int(your_month)}']"
     )))
     month_option.click()
 
-    # 
+    # Day
     day_field = driver.find_element(By.ID, "day")
     day_field.clear()
     day_field.send_keys(your_day)
 
+    # Year
     year_field = driver.find_element(By.ID, "year")
     year_field.clear()
     year_field.send_keys(your_year)
 
-
-    #This change in every language, so you should change it to your language
-    gender_map = { 
-        "male": "Masculino",
-        "female": "Femenino",
-        "other": "Prefiero no decirlo",
-        "custom": "Personalizado"
+    # Gender - Italian language
+    gender_map = {
+        "male": "Uomo",
+        "female": "Donna", 
+        "other": "Preferisco non specificarlo",
+        "custom": "Personalizzato"
     }
-
-    gender_key = str(your_gender).lower() if your_gender else "other"
-    gender_visible_text = gender_map.get(gender_key, "Prefiero no decirlo")
-
+    
+    gender_visible_text = gender_map.get(your_gender, "Preferisco non specificarlo")
+    
     gender_div = wait.until(EC.element_to_be_clickable((By.ID, "gender")))
     gender_div.click()
+    timeSleep(1)
 
     gender_option = wait.until(EC.element_to_be_clickable((
-        By.XPATH, f"//li[@role='option' and .//span[text()='{gender_visible_text}']]"
+        By.XPATH, f"//li[@role='option' and .//span[contains(text(), '{gender_visible_text}')]]"
     )))
-
     driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", gender_option)
-    timeSleep(0)
+    timeSleep(0.5)
     gender_option.click()
 
-    next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-LgbsSe")
-    next_button.click()
+    click_next_button(driver, wait)
+    print(f"✓ Data di nascita: {your_day}/{your_month}/{your_year}, Genere: {gender_visible_text}")
 
-    print("Birthday filled successfully")
+def click_no_email_option(driver, wait):
+    """Click on 'Non hai un indirizzo email o un numero di telefono?'"""
+    try:
+        # Try multiple selectors for the link
+        selectors = [
+            "//button[contains(., 'Non hai un indirizzo')]",
+            "//span[contains(text(), 'Non hai un indirizzo')]",
+            "//div[contains(text(), 'Non hai un indirizzo')]",
+            "//*[contains(text(), 'Non hai un indirizzo email')]",
+            "//button[@jsname='LgbsSe']//span[contains(text(), 'Non hai')]/..",
+        ]
+        
+        for selector in selectors:
+            try:
+                element = wait.until(EC.element_to_be_clickable((By.XPATH, selector)))
+                element.click()
+                print("✓ Cliccato su 'Non hai un indirizzo email o un numero di telefono?'")
+                timeSleep(1)
+                return
+            except:
+                continue
+        
+        # If not found, maybe we're already on the username page
+        if driver.find_elements(By.NAME, "Username"):
+            print("✓ Già sulla pagina username")
+            return
+            
+    except Exception as e:
+        print(f"Nota: {e}")
 
 def fill_gmailaddress(driver, wait, your_username):
-    custom_buttons = driver.find_elements(By.XPATH, "//div[contains(text(), 'Crear dirección de Gmail personalizada')]") # this texts change in every language, so you should change it to your language
-    if custom_buttons:
-        custom_buttons[0].click()
+    # Try to find and click "Crea il tuo indirizzo Gmail" if present
+    try:
+        custom_buttons = driver.find_elements(By.XPATH, "//*[contains(text(), 'Crea il tuo indirizzo Gmail')]")
+        if custom_buttons:
+            custom_buttons[0].click()
+            timeSleep(1)
+    except:
+        pass
 
-    if driver.find_elements(By.CLASS_NAME, "uxXgMe"):
-        create_own_option = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "[jsname='CeL6Qc']")))
-        create_own_option.click()
+    # Try alternative selectors for custom email option
+    try:
+        create_own = driver.find_elements(By.CSS_SELECTOR, "[jsname='CeL6Qc']")
+        if create_own:
+            create_own[0].click()
+            timeSleep(1)
+    except:
+        pass
 
-    wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
-    username_field = driver.find_element(By.NAME, "Username")
+    # Fill username
+    username_field = wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
     username_field.clear()
     username_field.send_keys(your_username)
-    next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-LgbsSe")
-    next_button.click()
-    print("Gmail address filled successfully")
+    
+    click_next_button(driver, wait)
+    print(f"✓ Username inserito: {your_username}@gmail.com")
 
 def fill_password(driver, wait, your_password):
     password_field = wait.until(EC.visibility_of_element_located((By.NAME, "Passwd")))
     password_field.clear()
     password_field.send_keys(your_password)
-    confirm_passwd_div = driver.find_element(By.ID, "confirm-passwd")
-    password_confirmation_field = confirm_passwd_div.find_element(By.NAME, "PasswdAgain")
-    password_confirmation_field.clear()
-    password_confirmation_field.send_keys(your_password)
-    next_button = driver.find_element(By.CLASS_NAME, "VfPpkd-LgbsSe")
-    next_button.click()
-    print("Password filled successfully")
+    
+    # Find confirm password field
+    try:
+        confirm_field = driver.find_element(By.NAME, "PasswdAgain")
+    except:
+        confirm_field = driver.find_element(By.NAME, "ConfirmPasswd")
+    
+    confirm_field.clear()
+    confirm_field.send_keys(your_password)
+    
+    click_next_button(driver, wait)
+    print(f"✓ Password inserita")
 
-#--------------------------------------------------------- extra functions -------------------------------------------------------------
-def random_birthday(min_age=18, max_age=70):
+def handle_verification(driver, wait, your_username):
+    """Handle verification step - recovery email or phone number"""
+    timeSleep(2)
+    
+    # Check if we need phone verification
+    phone_field = driver.find_elements(By.ID, "phoneNumberId")
+    if phone_field and PHONE_NUMBER:
+        phone_field[0].clear()
+        phone_field[0].send_keys(PHONE_NUMBER)
+        click_next_button(driver, wait)
+        print(f"✓ Numero di telefono inserito: {PHONE_NUMBER}")
+        print("⚠ Inserisci il codice di verifica manualmente...")
+        input("Premi INVIO dopo aver inserito il codice...")
+        return
+
+    # Check for recovery email option
+    try:
+        # Look for recovery email field
+        recovery_selectors = [
+            (By.NAME, "recoveryEmail"),
+            (By.ID, "recoveryEmail"),
+            (By.XPATH, "//input[@type='email']"),
+        ]
+        
+        for by, selector in recovery_selectors:
+            recovery_fields = driver.find_elements(by, selector)
+            if recovery_fields:
+                if RECOVERY_EMAIL:
+                    recovery_fields[0].clear()
+                    recovery_fields[0].send_keys(RECOVERY_EMAIL)
+                    click_next_button(driver, wait)
+                    print(f"✓ Email di recupero inserita: {RECOVERY_EMAIL}")
+                    print("⚠ Controlla l'email di recupero per il codice di verifica...")
+                    input("Premi INVIO dopo aver inserito il codice...")
+                    return
+                break
+    except:
+        pass
+
+    # Try to skip if possible
+    try:
+        skip_buttons = driver.find_elements(By.XPATH, "//*[contains(text(), 'Salta') or contains(text(), 'Skip')]")
+        if skip_buttons:
+            skip_buttons[0].click()
+            print("✓ Verifica saltata")
+            return
+    except:
+        pass
+
+    # Handle terms acceptance
+    try:
+        agree_buttons = driver.find_elements(By.XPATH, "//*[contains(text(), 'Accetto') or contains(text(), 'I agree')]")
+        if agree_buttons:
+            agree_buttons[0].click()
+            print("✓ Termini accettati")
+    except:
+        pass
+
+    print("⚠ Completa manualmente la verifica se necessario...")
+
+def click_next_button(driver, wait):
+    """Click the next/continue button"""
+    try:
+        # Try multiple selectors
+        selectors = [
+            (By.XPATH, "//button[contains(@class, 'VfPpkd-LgbsSe') and .//span[contains(text(), 'Avanti')]]"),
+            (By.XPATH, "//button[.//span[contains(text(), 'Avanti')]]"),
+            (By.XPATH, "//button[.//span[contains(text(), 'Next')]]"),
+            (By.CLASS_NAME, "VfPpkd-LgbsSe"),
+        ]
+        
+        for by, selector in selectors:
+            try:
+                buttons = driver.find_elements(by, selector)
+                for btn in buttons:
+                    if btn.is_displayed() and btn.is_enabled():
+                        btn.click()
+                        return
+            except:
+                continue
+                
+    except Exception as e:
+        print(f"Errore click next: {e}")
+
+def random_birthday(min_age=18, max_age=50):
     today = datetime.today()
-
     start_date = datetime(today.year - max_age, 1, 1)
     end_date = datetime(today.year - min_age, 12, 31)
-
     delta = end_date - start_date
     random_days = random.randint(0, delta.days)
     birth_date = start_date + timedelta(days=random_days)
-    
-    return f"{birth_date.day} {birth_date.month} {birth_date.year}" # random birthday from 18 to 70 years old, format: "dd mm yyyy"
+    return f"{birth_date.day} {birth_date.month} {birth_date.year}"
 
-def timeSleep(min): 
-    time.sleep(random.randint(min, min+2)) # set random time so google doesn't detect the automation
+def timeSleep(seconds):
+    time.sleep(seconds + random.uniform(0.5, 1.5))
 
-#initialize script
 if __name__ == "__main__":
     main()
-
-#French last and first names, im using spanish ones
-# first_names = [
-#     "Amélie", "Antoine", "Aurélie", "Benoît", "Camille", "Charles", "Chloé", "Claire", "Clément", "Dominique",
-#     "Élodie", "Émilie", "Étienne", "Fabien", "François", "Gabriel", "Hélène", "Henri", "Isabelle", "Jules",
-#     "Juliette", "Laurent", "Léa", "Léon", "Louise", "Lucas", "Madeleine", "Marc", "Margaux", "Marie",
-#     "Mathieu", "Nathalie", "Nicolas", "Noémie", "Olivier", "Pascal", "Philippe", "Pierre", "Raphaël", "René",
-#     "Sophie", "Stéphane", "Suzanne", "Théo", "Thomas", "Valentin", "Valérie", "Victor", "Vincent", "Yves",
-#     "Zoé", "Adèle", "Adrien", "Alexandre", "Alice", "Alix", "Anatole", "André", "Angèle", "Anne",
-#     "Baptiste", "Basile", "Bernard", "Brigitte", "Céleste", "Céline", "Christophe", "Cyril", "Denis", "Diane",
-#     "Édouard", "Éléonore", "Émile", "Félix", "Florence", "Georges", "Gérard", "Guillaume", "Hugo", "Inès",
-#     "Jacques", "Jean", "Jeanne", "Joséphine", "Julien", "Laure", "Lucie", "Maëlle", "Marcel", "Martine",
-#     "Maxime", "Michel", "Nina", "Océane", "Paul", "Perrine", "Quentin", "Romain", "Solène", "Thérèse"
-# ]
-# last_names = [
-#     "Leroy", "Moreau", "Bernard", "Dubois", "Durand", "Lefebvre", "Mercier", "Dupont", "Fournier", "Lambert",
-#     "Fontaine", "Rousseau", "Vincent", "Muller", "Lefèvre", "Faure", "André", "Gauthier", "Garcia", "Perrin",
-#     "Robin", "Clement", "Morin", "Nicolas", "Henry", "Roussel", "Mathieu", "Garnier", "Chevalier", "François",
-#     "Legrand", "Gérard", "Boyer", "Gautier", "Roche", "Roy", "Noel", "Meyer", "Lucas", "Gomez",
-#     "Martinez", "Caron", "Da Silva", "Lemoine", "Philippe", "Bourgeois", "Pierre", "Renard", "Girard", "Brun",
-#     "Gaillard", "Barbier", "Arnaud", "Martins", "Rodriguez", "Picard", "Roger", "Schmitt", "Colin", "Vidal",
-#     "Dupuis", "Pires", "Renaud", "Renault", "Klein", "Coulon", "Grondin", "Leclerc", "Pires", "Marchand",
-#     "Dufour", "Blanchard", "Gillet", "Chevallier", "Fernandez", "David", "Bouquet", "Gilles", "Fischer", "Roy",
-#     "Besson", "Lemoine", "Delorme", "Carpentier", "Dumas", "Marin", "Gosselin", "Mallet", "Blondel", "Adam",
-#     "Durant", "Laporte", "Boutin", "Lacombe", "Navarro", "Langlois", "Deschamps", "Schneider", "Pasquier", "Renaud"
-# ]
