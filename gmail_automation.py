@@ -225,39 +225,48 @@ def click_no_email_option(driver, wait):
         print(f"Nota: {e}")
 
 def fill_gmailaddress(driver, wait, your_username):
-    # Try to find and click "Create your own Gmail address" if present (multiple languages)
-    custom_selectors = [
-        "//*[contains(text(), 'Crea il tuo indirizzo Gmail')]",
-        "//*[contains(text(), 'Create your own Gmail address')]",
-        "//*[contains(text(), 'Crear tu propia')]",
-        "[jsname='CeL6Qc']",
-    ]
-    
-    for selector in custom_selectors:
-        try:
-            if selector.startswith("["):
-                elements = driver.find_elements(By.CSS_SELECTOR, selector)
-            else:
-                elements = driver.find_elements(By.XPATH, selector)
-            for el in elements:
-                if el.is_displayed():
-                    el.click()
-                    timeSleep(1)
-                    break
-        except:
-            continue
-
-    # Fill username
+    # First, check if there are radio buttons for email selection
     try:
-        username_field = wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
-        username_field.clear()
-        username_field.send_keys(your_username)
+        # Look for "Create your own Gmail address" radio option
+        custom_radio_selectors = [
+            "//div[contains(text(), 'Create your own Gmail address')]",
+            "//span[contains(text(), 'Create your own Gmail address')]",
+            "//div[contains(text(), 'Crea il tuo indirizzo Gmail')]",
+            "//span[contains(text(), 'Crea il tuo indirizzo Gmail')]",
+        ]
         
+        for selector in custom_radio_selectors:
+            try:
+                elements = driver.find_elements(By.XPATH, selector)
+                for el in elements:
+                    if el.is_displayed():
+                        el.click()
+                        print("✓ Selezionato 'Create your own Gmail address'")
+                        timeSleep(1)
+                        break
+            except:
+                continue
+    except:
+        pass
+
+    # Check if Username field is now visible (after clicking radio)
+    username_fields = driver.find_elements(By.NAME, "Username")
+    
+    if username_fields and username_fields[0].is_displayed():
+        # Username field is visible, fill it
+        try:
+            username_field = wait.until(EC.element_to_be_clickable((By.NAME, "Username")))
+            username_field.clear()
+            username_field.send_keys(your_username)
+            click_next_button(driver, wait)
+            print(f"✓ Username inserito: {your_username}@gmail.com")
+        except Exception as e:
+            print(f"⚠ Errore inserimento username: {e}")
+            driver.save_screenshot("username_error.png")
+    else:
+        # Username field not visible, just click Next to use suggested email
         click_next_button(driver, wait)
-        print(f"✓ Username inserito: {your_username}@gmail.com")
-    except Exception as e:
-        print(f"⚠ Errore inserimento username: {e}")
-        driver.save_screenshot("username_error.png")
+        print("✓ Utilizzato email suggerito da Google")
 
 def fill_password(driver, wait, your_password):
     password_field = wait.until(EC.visibility_of_element_located((By.NAME, "Passwd")))
